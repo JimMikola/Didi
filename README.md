@@ -4,7 +4,7 @@
     <strong>"We always find something, eh Didi, to give us the impression we exist?"</strong>
   </p>
   <p align="center">
-    <a href="#"><img src="https://img.shields.io/badge/Godot-4.2%2B-blue?logo=godotengine" alt="Godot 4.5+"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Godot-4.5%2B-blue?logo=godotengine" alt="Godot 4.5+"></a>
     <a href="#"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
     <a href="#"><img src="https://img.shields.io/badge/MCP-Compatible-green" alt="MCP Compatible"></a>
     <a href="#"><img src="https://img.shields.io/badge/Platform-Editor%20Only-orange" alt="Editor Only"></a>
