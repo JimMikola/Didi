@@ -1,0 +1,7 @@
+[submodule "fastmcpp"]
+	path = fastmcpp
+	url = https://github.com/0xeb/fastmcpp
+[submodule "godot-cpp"]
+	path = godot-cpp
+	url = https://github.com/godotengine/godot-cpp
+	branch = 4.5

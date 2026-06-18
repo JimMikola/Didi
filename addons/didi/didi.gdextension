@@ -1,0 +1,22 @@
+[configuration]
+
+entry_symbol = "didi_library_init"
+compatibility_minimum = "4.4"
+reloadable = true
+
+; Editor-only extension: only `.editor` libraries are listed, so the extension
+; loads while editing the project but is absent from exported games
+; (which match the template_debug / template_release feature tags). The
+; DidiEditorPlugin starts/stops the MCP server with the editor session.
+;
+; NOTE: .gdextension files are parsed as Godot ConfigFile, whose comment
+; character is ';' (NOT '#'). A '#' comment here silently breaks parsing of the
+; [libraries] section below, causing "No GDExtension library found".
+[libraries]
+
+windows.editor.x86_64 = "res://addons/didi/libdidi.windows.editor.x86_64.dll"
+
+linux.editor.x86_64   = "res://addons/didi/libdidi.linux.editor.x86_64.so"
+linux.editor.arm64    = "res://addons/didi/libdidi.linux.editor.arm64.so"
+
+macos.editor          = "res://addons/didi/libdidi.macos.editor.framework"

@@ -43,6 +43,7 @@
 build/
 Build/
 build-*/
+out/
 
 # CMake generated files
 CMakeFiles/
@@ -58,6 +59,14 @@ compile_commands.json
 *.bak
 *.swp
 
+# Godot files from demo project
+.godot
+
+# Generated demo addon: assembled by the build from the repo-root addons/didi
+# source plus the compiled library. The canonical static files live in
+# /addons/didi and are tracked there.
+/demo/addons/didi/
+
 # vcpkg
 vcpkg_installed/
 
@@ -67,3 +76,6 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# local claude settings
+settings.local.json
