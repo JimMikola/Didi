@@ -1,0 +1,122 @@
+[gd_scene format=3 uid="uid://cqv7igtoclcge"]
+
+[ext_resource type="Script" uid="uid://dchthncx312vj" path="res://tetris/game.gd" id="1_0xm2m"]
+[ext_resource type="Script" uid="uid://dpcmvfdtyqsge" path="res://tetris/board.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://oxdqe86mc6ab" path="res://tetris/preview.gd" id="3_h2yge"]
+[ext_resource type="Script" uid="uid://lafuaownn7xv" path="res://tetris/sfx.gd" id="4_1bvp3"]
+
+[node name="Main" type="Node2D" unique_id=134188409]
+script = ExtResource("1_0xm2m")
+
+[node name="Board" type="Node2D" parent="." unique_id=100874292]
+position = Vector2(30, 60)
+script = ExtResource("1_ig7tw")
+
+[node name="HUD" type="Node2D" parent="." unique_id=296137891]
+
+[node name="ScoreCaption" type="Label" parent="HUD" unique_id=1636004951]
+offset_left = 350.0
+offset_top = 86.0
+offset_right = 350.0
+offset_bottom = 86.0
+theme_override_colors/font_color = Color(0.7, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 16
+text = "SCORE"
+
+[node name="ScoreValue" type="Label" parent="HUD" unique_id=1447287404]
+offset_left = 350.0
+offset_top = 108.0
+offset_right = 350.0
+offset_bottom = 108.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 30
+text = "0"
+
+[node name="LevelCaption" type="Label" parent="HUD" unique_id=1928402894]
+offset_left = 350.0
+offset_top = 178.0
+offset_right = 350.0
+offset_bottom = 178.0
+theme_override_colors/font_color = Color(0.7, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 16
+text = "LEVEL"
+
+[node name="LevelValue" type="Label" parent="HUD" unique_id=1706779744]
+offset_left = 350.0
+offset_top = 200.0
+offset_right = 350.0
+offset_bottom = 200.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 30
+text = "1"
+
+[node name="LinesCaption" type="Label" parent="HUD" unique_id=501652187]
+offset_left = 350.0
+offset_top = 270.0
+offset_right = 350.0
+offset_bottom = 270.0
+theme_override_colors/font_color = Color(0.7, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 16
+text = "LINES"
+
+[node name="LinesValue" type="Label" parent="HUD" unique_id=1297814503]
+offset_left = 350.0
+offset_top = 292.0
+offset_right = 350.0
+offset_bottom = 292.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 30
+text = "0"
+
+[node name="GameOver" type="Label" parent="HUD" unique_id=520976488]
+visible = false
+offset_left = 80.0
+offset_top = 310.0
+offset_right = 280.0
+offset_bottom = 400.0
+theme_override_colors/font_color = Color(1, 0.32, 0.32, 1)
+theme_override_font_sizes/font_size = 30
+text = "GAME OVER
+Press Enter"
+horizontal_alignment = 1
+
+[node name="NextCaption" type="Label" parent="HUD" unique_id=1337253146]
+offset_left = 350.0
+offset_top = 360.0
+offset_right = 350.0
+offset_bottom = 360.0
+theme_override_colors/font_color = Color(0.7, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 16
+text = "NEXT"
+
+[node name="NextPreview" type="Node2D" parent="HUD" unique_id=564723432]
+position = Vector2(350, 386)
+script = ExtResource("3_h2yge")
+
+[node name="HoldCaption" type="Label" parent="HUD" unique_id=934942526]
+offset_left = 350.0
+offset_top = 498.0
+offset_right = 350.0
+offset_bottom = 498.0
+theme_override_colors/font_color = Color(0.7, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 16
+text = "HOLD"
+
+[node name="HoldPreview" type="Node2D" parent="HUD" unique_id=1273862998]
+position = Vector2(350, 522)
+script = ExtResource("3_h2yge")
+
+[node name="Paused" type="Label" parent="HUD" unique_id=1717065060]
+visible = false
+offset_left = 80.0
+offset_top = 200.0
+offset_right = 280.0
+offset_bottom = 290.0
+theme_override_colors/font_color = Color(0.95, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 30
+text = "PAUSED
+P to resume"
+horizontal_alignment = 1
+
+[node name="Sfx" type="AudioStreamPlayer" parent="." unique_id=264189064]
+script = ExtResource("4_1bvp3")

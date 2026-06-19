@@ -24,8 +24,8 @@ Clone with `git submodule update --init --recursive`.
   background thread). All fastmcpp types are behind a **pimpl** so heavy headers
   (httplib, nlohmann/json) don't leak into the GDExtension header. Properties:
   `port` (8900), `bind_address`, `autostart`. Methods: `start_server`,
-  `stop_server`, `is_running`. Tools: `ping`, `godot_version`, and
-  `run_gdscript`. Resources: `gdscript_authoring_guide` (see below).
+  `stop_server`, `is_running`. Tools: `ping`, `godot_version`, `run_gdscript`,
+  and `capture_screenshot`. Resources: `gdscript_authoring_guide` (see below).
   Lifetime note: in `Impl`, the `Server` (`meta`), `ToolManager`,
   `ResourceManager`, and `PromptManager` are declared **before** the server
   because the full `make_mcp_handler` overload captures **all four by reference**
@@ -59,6 +59,20 @@ Clone with `git submodule update --init --recursive`.
   the batch out under the lock and runs each script on the main thread, then
   fulfills the promise. This is the same principle as the cached `godot_version`
   string: keep all Godot access on the main thread.
+
+  **`capture_screenshot` + the generic task queue.** Any main-thread tool follows
+  the same pattern as `run_gdscript`. To avoid baking GDScript-specific assumptions
+  into it, there's a second queue `Impl::pending_tasks` of
+  `{std::function<std::string()>, std::promise}`; `drain_script_queue()` drains it
+  alongside the script queue each frame. `capture_screenshot` (args: `path`
+  required, `target` = `window`|`3d`|`2d`) enqueues a task that calls
+  `capture_screenshot(path, target)` on the main thread — it grabs the chosen
+  `Viewport` (`EditorInterface::get_editor_viewport_2d/3d(0)` for the scene views,
+  or `get_tree()->get_root()` for the whole editor window), reads its
+  `ViewportTexture` → `Image`, and `save_png`s it. The tool callback captures the
+  owning `DidiServer*` so the task can call the member function. **The DLL hot-swap
+  caveat applies:** a rebuilt `libdidi…dll` must be deployed into the project's
+  `addons/didi/` and the extension reloaded before the new tool appears.
 
   **`gdscript_authoring_guide` — the MCP resource** (`uri: didi://guides/gdscript`,
   `text/markdown`). Tells an AI agent how to use `run_gdscript` + GDScript to
@@ -97,11 +111,23 @@ architecture"* and the extension fails to load entirely (server never starts,
 nothing binds `8900`). Keep all comments in
 `addons/didi/didi.gdextension` as `;`.
 
-## Worked example: Tetris via `run_gdscript`
+## Worked examples: games built via `run_gdscript`
 
-`examples/tetris.md` is a step-by-step walkthrough on creating a functional tetris
-game. Beyond the game, it records the practical Didi techniques that came out of
-building it — worth skimming before driving `run_gdscript` heavily:
+`examples/` holds complete games built end-to-end through Didi (every scene,
+script, and project setting authored via `run_gdscript`, no hand-editing) — each a
+step-by-step walkthrough plus a self-contained Godot project:
+
+- `examples/tetris.md` + `examples/tetris/` — 2D Tetris (SRS rotation + wall kicks,
+  7-bag, hold, ghost, line-clear scoring with levels, procedural sound).
+- `examples/space-flight.md` + `examples/space-flight/` — 3D first-person
+  space-flight sim (Newtonian flight + flight-assist, procedural asteroid field,
+  cockpit + instrument HUD, shields/hull/fuel, starfield, sound).
+
+(Each example folder is a self-contained project with its own `addons/didi/`; its
+project file is named `<name>.godot` — rename to `project.godot` to open it.)
+
+Beyond the games, the walkthroughs record the practical Didi techniques that came
+out of building them — worth skimming before driving `run_gdscript` heavily:
 
 - **Write multi-line files as an array of one-line strings** joined with `\n`
   (use `\t` for the file's own indentation). The tool indents *every* physical

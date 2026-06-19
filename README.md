@@ -35,8 +35,11 @@ Didi/
 ├── demo/
 │   ├── project.godot       # minimal Godot project to load the extension
 │   └── addons/didi/        # generated (git-ignored): static files above + the compiled library
-├── examples/
-│   └── tetris.md           # worked walkthrough: building the demo's Tetris game through Didi
+├── examples/              # complete games built end-to-end through Didi (see "Examples")
+│   ├── tetris.md              # walkthrough: a 2D Tetris game via run_gdscript
+│   ├── tetris/                # the resulting self-contained Tetris project
+│   ├── space-flight.md        # walkthrough: a 3D space-flight sim via run_gdscript
+│   └── space-flight/          # the resulting self-contained space-flight project
 └── CMakeLists.txt          # CMake build (godot-cpp + fastmcpp + the extension)
 ```
 
@@ -106,8 +109,10 @@ transport, MCP spec 2025-03-26):
   `bind_address` properties).
 * Runs on a background thread (`start()` is non-blocking), so it does not stall
   the editor.
-* Tools registered out of the box: `ping`, `godot_version`, and `run_gdscript`
-  (execute GDScript against the open project — inspect and author anything).
+* Tools registered out of the box: `ping`, `godot_version`, `run_gdscript`
+  (execute GDScript against the open project — inspect and author anything), and
+  `capture_screenshot` (save a PNG of the editor window or the 2D/3D scene
+  viewport).
 * Serves the `gdscript_authoring_guide` MCP resource
   (`didi://guides/gdscript`) describing how to drive `run_gdscript`.
 
@@ -124,6 +129,34 @@ transport, MCP spec 2025-03-26):
    curl -s http://127.0.0.1:8900/mcp -H "Content-Type: application/json" \
      -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
    ```
+
+## Examples
+
+The [`examples/`](examples/) folder contains complete games **built entirely
+through Didi** — every scene, script, and project setting authored by an AI
+calling the `run_gdscript` tool, with no hand-editing. Each example is a
+step-by-step walkthrough (`.md`) alongside the resulting self-contained Godot
+project:
+
+* **Tetris** — [`examples/tetris.md`](examples/tetris.md) +
+  [`examples/tetris/`](examples/tetris/). A 2D Tetris with SRS rotation + wall
+  kicks, a 7-bag randomizer, hold and ghost pieces, line-clear scoring with
+  rising levels/speed, and procedural sound.
+* **Space flight** — [`examples/space-flight.md`](examples/space-flight.md) +
+  [`examples/space-flight/`](examples/space-flight/). A 3D first-person
+  space-flight sim: Newtonian 6DOF flight with flight-assist, a procedural
+  asteroid field, a cockpit frame + instrument HUD, shields/hull/fuel survival
+  systems, a starfield, and sound.
+
+The walkthrough `.md` files double as practical guides to driving `run_gdscript`:
+they record the techniques and gotchas that came up while building each game
+(array-of-lines file writing, `@tool` vs. runtime testing, splitting
+`set_script` across calls, and more), complementing the `gdscript_authoring_guide`
+MCP resource.
+
+Each example folder is a self-contained Godot project **except for `addons/didi/`**,
+which is git-ignored — build the plugin (it lands in `demo/addons/didi/`) and copy
+that folder into the example before opening it in Godot.
 
 ## Notes
 

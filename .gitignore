@@ -62,10 +62,10 @@ compile_commands.json
 # Godot files from demo project
 .godot
 
-# Generated demo addon: assembled by the build from the repo-root addons/didi
-# source plus the compiled library. The canonical static files live in
+# Ignore child Didi addons: these are assembled by the build from the repo
+# source plus the compiled libraries. The canonical static files live in
 # /addons/didi and are tracked there.
-/demo/addons/didi/
+*/addons/didi/
 
 # vcpkg
 vcpkg_installed/

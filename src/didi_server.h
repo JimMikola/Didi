@@ -38,7 +38,10 @@ private:
     // Runs an AI-provided GDScript source on the main thread and returns its
     // result as a string. Called only from _process (main thread).
     std::string execute_gdscript(const std::string &user_source);
-    // Drains pending run_gdscript requests on the main thread.
+    // Captures the editor (whole window, or the 2D/3D scene viewport) to a PNG.
+    // Must run on the main thread (Godot viewport/image APIs are not thread-safe).
+    std::string capture_screenshot(const String &path, const String &target);
+    // Drains pending run_gdscript requests and main-thread tasks (e.g. screenshots).
     void drain_script_queue();
 
 protected:

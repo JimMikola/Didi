@@ -1,0 +1,97 @@
+[gd_scene format=3 uid="uid://c6hxxkyfdebck"]
+
+[ext_resource type="Script" uid="uid://42vikdwy52uk" path="res://space/ship.gd" id="1_d5lh8"]
+[ext_resource type="Script" uid="uid://bwj1cxd4y5hs7" path="res://space/asteroid_field.gd" id="2_81phd"]
+[ext_resource type="Script" uid="uid://b4e8aiyp5nrmr" path="res://space/camera_shake.gd" id="2_w5eul"]
+[ext_resource type="Script" uid="uid://o08mc5gnf3nb" path="res://space/hud.gd" id="3_qtpbo"]
+[ext_resource type="Script" uid="uid://cf5crybdjn01y" path="res://space/starfield.gd" id="4_rxlph"]
+[ext_resource type="Script" uid="uid://d1qmvqv418ddv" path="res://space/sound.gd" id="5_ulv8f"]
+
+[sub_resource type="Environment" id="Environment_61xo0"]
+background_mode = 1
+background_color = Color(0.01, 0.01, 0.03, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.25, 0.32, 1)
+ambient_light_energy = 0.4
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_81phd"]
+radius = 1.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_81phd"]
+albedo_color = Color(0.08, 0.09, 0.11, 1)
+metallic = 0.6
+roughness = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_qtpbo"]
+size = Vector3(2.7, 0.4, 0.25)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rxlph"]
+size = Vector3(2.7, 0.08, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ulv8f"]
+size = Vector3(0.09, 1.7, 0.09)
+
+[sub_resource type="BoxMesh" id="BoxMesh_w5eul"]
+size = Vector3(0.09, 1.7, 0.09)
+
+[node name="Space" type="Node3D" unique_id=1892088213]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1900363322]
+environment = SubResource("Environment_61xo0")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=913185243]
+transform = Transform3D(0.81915206, -0.4055798, 0.4055798, 0, 0.70710677, 0.70710677, -0.57357645, -0.579228, 0.579228, 0, 0, 0)
+light_energy = 1.1
+
+[node name="Ship" type="CharacterBody3D" parent="." unique_id=609907163]
+script = ExtResource("1_d5lh8")
+
+[node name="Collision" type="CollisionShape3D" parent="Ship" unique_id=408859005]
+shape = SubResource("SphereShape3D_81phd")
+
+[node name="Camera3D" type="Camera3D" parent="Ship" unique_id=694166177]
+current = true
+script = ExtResource("2_w5eul")
+
+[node name="Cockpit" type="Node3D" parent="Ship/Camera3D" unique_id=1911618753]
+
+[node name="Dashboard" type="MeshInstance3D" parent="Ship/Camera3D/Cockpit" unique_id=77337210]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, -0.25881904, 0, 0.25881904, 0.9659258, 0, -0.86, -1)
+material_override = SubResource("StandardMaterial3D_81phd")
+mesh = SubResource("BoxMesh_qtpbo")
+
+[node name="TopBar" type="MeshInstance3D" parent="Ship/Camera3D/Cockpit" unique_id=583623855]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -1)
+material_override = SubResource("StandardMaterial3D_81phd")
+mesh = SubResource("BoxMesh_rxlph")
+
+[node name="PillarL" type="MeshInstance3D" parent="Ship/Camera3D/Cockpit" unique_id=1117140071]
+transform = Transform3D(0.99026805, -0.1391731, 0, 0.1391731, 0.99026805, 0, 0, 0, 1, -1.28, 0, -1)
+material_override = SubResource("StandardMaterial3D_81phd")
+mesh = SubResource("BoxMesh_ulv8f")
+
+[node name="PillarR" type="MeshInstance3D" parent="Ship/Camera3D/Cockpit" unique_id=748056399]
+transform = Transform3D(0.99026805, 0.1391731, 0, -0.1391731, 0.99026805, 0, 0, 0, 1, 1.28, 0, -1)
+material_override = SubResource("StandardMaterial3D_81phd")
+mesh = SubResource("BoxMesh_w5eul")
+
+[node name="AsteroidField" type="Node3D" parent="." unique_id=2005647791]
+script = ExtResource("2_81phd")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=592895502]
+
+[node name="Instruments" type="Control" parent="HUD" unique_id=1125882255]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_qtpbo")
+
+[node name="Starfield" type="Node3D" parent="." unique_id=1130372301]
+script = ExtResource("4_rxlph")
+
+[node name="Sound" type="Node" parent="." unique_id=670824121]
+script = ExtResource("5_ulv8f")

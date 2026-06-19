@@ -3,10 +3,21 @@
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/gd_script.hpp>
+#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/sub_viewport.hpp>
+#include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/classes/viewport.hpp>
+#include <godot_cpp/classes/viewport_texture.hpp>
+#include <godot_cpp/classes/window.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+
+#ifdef TOOLS_ENABLED
+#include <godot_cpp/classes/editor_interface.hpp>
+#endif
 
 #include <fastmcpp/mcp/handler.hpp>
 #include <fastmcpp/prompts/manager.hpp>
@@ -17,6 +28,7 @@
 
 #include <chrono>
 #include <deque>
+#include <functional>
 #include <future>
 #include <mutex>
 #include <string>
@@ -30,6 +42,13 @@ namespace {
 // worker thread is blocked on. The main thread fulfills `result` after running.
 struct PendingScript {
     std::string source;
+    std::promise<std::string> result;
+};
+
+// A generic main-thread task (e.g. screenshot capture): a callable to run on the
+// main thread plus the promise the worker thread is blocked on.
+struct PendingTask {
+    std::function<std::string()> fn;
     std::promise<std::string> result;
 };
 } // namespace
@@ -56,6 +75,7 @@ struct DidiServer::Impl {
     // ever touched on the main thread. Guarded by `queue_mutex`.
     std::mutex queue_mutex;
     std::deque<PendingScript> pending;
+    std::deque<PendingTask> pending_tasks;
 
     std::unique_ptr<fastmcpp::server::StreamableHttpServerWrapper> server;
 };
@@ -97,6 +117,7 @@ DidiServer::~DidiServer() {
 void DidiServer::register_tools() {
     using fastmcpp::Json;
     Impl *im = impl.get();
+    DidiServer *self = this;
 
     const Json no_args = Json{ { "type", "object" }, { "properties", Json::object() } };
 
@@ -157,6 +178,47 @@ void DidiServer::register_tools() {
                     "(e.g. create nodes, set properties, save resources). Runs on the editor's main thread. "
                     "See the 'gdscript_authoring_guide' resource for patterns and examples."));
 
+    // Capture a screenshot of the editor to a PNG. Like run_gdscript, the
+    // callback runs on the worker thread, so it enqueues a main-thread task
+    // (Godot's viewport/image APIs are main-thread-only) and blocks on the result.
+    impl->tools.register_tool(fastmcpp::tools::Tool{
+            "capture_screenshot",
+            Json{ { "type", "object" },
+                    { "properties", Json{
+                            { "path", Json{ { "type", "string" } } },
+                            { "target", Json{ { "type", "string" },
+                                    { "enum", Json::array({ "window", "3d", "2d" }) } } } } },
+                    { "required", Json::array({ "path" }) } },
+            Json{ { "type", "string" } },
+            [self, im](const Json &in) -> Json {
+                std::string path = in.value("path", std::string());
+                std::string target = in.value("target", std::string("window"));
+                if (path.empty()) {
+                    return std::string("error: the 'path' argument is required (e.g. 'res://shot.png')");
+                }
+
+                std::promise<std::string> prom;
+                std::future<std::string> fut = prom.get_future();
+                {
+                    std::lock_guard<std::mutex> lock(im->queue_mutex);
+                    im->pending_tasks.push_back(PendingTask{
+                            [self, path, target]() -> std::string {
+                                return self->capture_screenshot(String::utf8(path.c_str()), String::utf8(target.c_str()));
+                            },
+                            std::move(prom) });
+                }
+
+                if (fut.wait_for(std::chrono::seconds(15)) != std::future_status::ready) {
+                    return std::string("error: timed out after 15s waiting for the Godot main thread");
+                }
+                return fut.get();
+            } }
+            .set_description(
+                    "Capture a screenshot of the Godot editor and save it as a PNG. Args: 'path' "
+                    "(required; e.g. 'res://shot.png' or an absolute path) and optional 'target' = "
+                    "'window' (whole editor window, default), '3d' (the 3D scene viewport), or '2d' "
+                    "(the 2D scene viewport). Returns the saved path and image dimensions."));
+
     // Serve the GDScript authoring guide as an MCP resource. The provider runs
     // on the server's worker thread, so it only returns the cached markdown
     // (loaded on the main thread in start_server()); it never touches Godot.
@@ -195,20 +257,66 @@ void DidiServer::_process(double delta) {
 }
 
 void DidiServer::drain_script_queue() {
-    // Take the whole batch under the lock, then run scripts without holding it
-    // (script execution can re-enter Godot for arbitrarily long).
-    std::deque<PendingScript> batch;
+    // Take both batches under the lock, then run them without holding it
+    // (each can re-enter Godot for arbitrarily long).
+    std::deque<PendingScript> scripts;
+    std::deque<PendingTask> tasks;
     {
         std::lock_guard<std::mutex> lock(impl->queue_mutex);
-        if (impl->pending.empty()) {
-            return;
-        }
-        batch.swap(impl->pending);
+        scripts.swap(impl->pending);
+        tasks.swap(impl->pending_tasks);
     }
 
-    for (PendingScript &task : batch) {
-        task.result.set_value(execute_gdscript(task.source));
+    for (PendingScript &s : scripts) {
+        s.result.set_value(execute_gdscript(s.source));
     }
+    for (PendingTask &t : tasks) {
+        t.result.set_value(t.fn());
+    }
+}
+
+std::string DidiServer::capture_screenshot(const String &path, const String &target) {
+    // Pick the viewport to capture. "2d"/"3d" grab the editor's scene viewport;
+    // anything else ("window") grabs the editor's root window viewport.
+    Viewport *vp = nullptr;
+    if (target == "3d" || target == "2d") {
+        // Editor scene viewport. Fail explicitly if it isn't available rather
+        // than silently capturing something the caller didn't ask for.
+#ifdef TOOLS_ENABLED
+        EditorInterface *ei = EditorInterface::get_singleton();
+        if (ei != nullptr) {
+            vp = (target == "3d") ? ei->get_editor_viewport_3d(0) : ei->get_editor_viewport_2d();
+        }
+#endif
+        if (vp == nullptr) {
+            return std::string("error: the '") + target.utf8().get_data() + "' scene viewport is unavailable";
+        }
+    } else {
+        // "window" (the default): the editor's root window viewport.
+        SceneTree *st = get_tree();
+        if (st != nullptr) {
+            vp = st->get_root();
+        }
+        if (vp == nullptr) {
+            return "error: no window viewport available to capture";
+        }
+    }
+
+    Ref<ViewportTexture> tex = vp->get_texture();
+    if (tex.is_null()) {
+        return "error: viewport has no texture";
+    }
+    Ref<Image> img = tex->get_image();
+    if (img.is_null()) {
+        return "error: could not read the viewport image";
+    }
+    const Error err = img->save_png(path);
+    if (err != OK) {
+        return std::string("error: save_png failed (Error ") + std::to_string((int)err) + ") for " +
+                path.utf8().get_data();
+    }
+    return std::string("saved ") + path.utf8().get_data() + " (" +
+            std::to_string(img->get_width()) + "x" + std::to_string(img->get_height()) + ")";
 }
 
 std::string DidiServer::execute_gdscript(const std::string &user_source) {
