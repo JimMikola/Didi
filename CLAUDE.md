@@ -34,13 +34,19 @@ Clone with `git submodule update --init --recursive`.
   **`run_gdscript` — the main tool.** Executes AI-provided GDScript against the
   open project for both inspection and authoring. Input: `{ script: string }`,
   where `script` is the **body** of a function. It's wrapped as
-  `func _didi_run():` on a throwaway `@tool`/`extends RefCounted` `GDScript`
-  (each line indented one tab), compiled via `Script::reload()`, instantiated
-  with `call("new")`, and invoked; the return value is serialized with
-  `UtilityFunctions::var_to_str`. Use `return <value>` to return data. Compile
-  failures surface as `compile error: ... Error <code>` (e.g. **43** =
-  `ERR_COMPILATION_FAILED`); runtime errors print to Godot's output and the call
-  returns `null`.
+  `func _didi_run():` on a throwaway `@tool`/`extends RefCounted` `GDScript`,
+  compiled via `Script::reload()`, instantiated with `call("new")`, and invoked;
+  the return value is serialized with `UtilityFunctions::var_to_str`. Use
+  `return <value>` to return data. Compile failures surface as
+  `compile error: ... Error <code>` (e.g. **43** = `ERR_COMPILATION_FAILED`);
+  runtime errors print to Godot's output and the call returns `null`.
+
+  **Indentation (a real footgun):** the body is indented one level to nest
+  inside the function. GDScript rejects mixing tabs and spaces in indentation,
+  so `execute_gdscript` detects the caller's style — it indents with spaces if
+  any line of the script is space-indented, otherwise a tab — so callers can
+  write either style. A script that itself mixes tabs and spaces still fails
+  (the caller's bug).
 
   **Threading — main-thread dispatch (mandatory):** the MCP server runs on a
   background worker thread, but Godot APIs are main-thread-only. So the
@@ -90,6 +96,26 @@ section, so Godot reports *"No GDExtension library found for current OS and
 architecture"* and the extension fails to load entirely (server never starts,
 nothing binds `8900`). Keep all comments in
 `addons/didi/didi.gdextension` as `;`.
+
+## Worked example: Tetris via `run_gdscript`
+
+`examples/tetris.md` is a step-by-step walkthrough on creating a functional tetris
+game. Beyond the game, it records the practical Didi techniques that came out of
+building it — worth skimming before driving `run_gdscript` heavily:
+
+- **Write multi-line files as an array of one-line strings** joined with `\n`
+  (use `\t` for the file's own indentation). The tool indents *every* physical
+  line of your script, so a triple-quoted multi-line literal gets corrupted.
+- **`@tool` decides what you can test from Didi.** `@tool` nodes run in the editor
+  (call methods, see `_draw`); non-`@tool` scripts have no live instance, so their
+  methods can't be driven from a tool call, and the played game (F5) is a separate
+  process Didi can't introspect. Verify runtime logic by mirroring it against a
+  `@tool` node.
+- **Split "change a script" from "use it" across two calls** (the engine binds the
+  new script at the next frame); force a fresh load with
+  `ResourceLoader.load(path, "GDScript", ResourceLoader.CACHE_MODE_REPLACE)`.
+
+These same notes live in the `gdscript_authoring_guide` resource for MCP clients.
 
 ## Build (CMake only — no SCons)
 

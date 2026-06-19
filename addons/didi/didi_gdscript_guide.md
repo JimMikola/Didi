@@ -28,6 +28,12 @@ Therefore:
   Godot's `var_to_str()` and sent back as the tool result. Return a
   `Dictionary`/`Array` for structured output.
 - **Statements are allowed** — declare `var`s, loop, branch, call methods, etc.
+- **Indent consistently — all tabs *or* all spaces, never both.** Your script is
+  wrapped as a function body, so it gets indented one level; the tool matches the
+  indentation style it detects in your script (spaces if any line is
+  space-indented, otherwise tabs). GDScript rejects a script that mixes tabs and
+  spaces in its own indentation, so pick one style for your nested
+  `if`/`for`/`while` blocks and stick to it.
 - **You cannot declare functions, classes, signals, or `const`s at top level**
   inside the body (they would be nested inside `_didi_run`). If you need a helper
   type, build it as a separate `GDScript` resource (see "Run a standalone script"
@@ -249,18 +255,31 @@ return "save error %d" % err if err != OK else "saved"
 
 ### Write a new script (or any text file)
 
+**Build multi-line file content as an array of single-line strings — not a
+triple-quoted literal.** The tool wraps your script as a function body and indents
+**every physical line**, so a `"""..."""` block spanning several lines has its
+indentation shifted and the file you write is corrupted. Joining single-line
+strings sidesteps that; put the file's *own* indentation inside the strings as
+`\t` (those escapes are part of the string value, untouched by the wrapper):
+
 ```gdscript
-var src = """extends Node
-func _ready():
-    print("hello from a generated script")
-"""
+var lines = [
+    "extends Node",
+    "",
+    "func _ready() -> void:",
+    "\tprint(\"hello from a generated script\")",
+]
 var f = FileAccess.open("res://generated/hello.gd", FileAccess.WRITE)
 if f == null: return "open error %d" % FileAccess.get_open_error()
-f.store_string(src)
+f.store_string("\n".join(lines) + "\n")
 f.close()
 EditorInterface.get_resource_filesystem().scan()
 return "wrote res://generated/hello.gd"
 ```
+
+To **edit** an existing file, read it (`FileAccess.get_file_as_string`), transform
+the text (`String.replace`, or append lines), and write it back — guard with an
+`if "marker" in src` check so re-running is idempotent.
 
 ### Attach a script to a node
 
@@ -270,6 +289,16 @@ node.set_script(load("res://player.gd"))
 EditorInterface.mark_scene_as_unsaved()
 return "ok"
 ```
+
+> **Split "change a script" and "use it" across two `run_gdscript` calls.** When
+> you write/reload a `.gd` file or `set_script()` a node, the new members are not
+> usable until the engine processes the reload — which happens at the next frame
+> boundary, i.e. on your **next** tool call. Calling a freshly-assigned method in
+> the *same* script (e.g. `node.set_script(s); node.new_method()`) fails. So:
+> **call 1** writes the file / sets the script (and `scan()`); **call 2** loads it,
+> instantiates it, or calls its new methods. To bypass the resource cache when a
+> script changed on disk, reload with
+> `ResourceLoader.load(path, "GDScript", ResourceLoader.CACHE_MODE_REPLACE)`.
 
 ---
 
@@ -289,27 +318,63 @@ Editing live nodes changes the in-memory scene only. To persist:
 Use `EditorInterface.mark_scene_as_unsaved()` when you mutate nodes but want the
 user to decide when to save.
 
+**Only node properties and `@export` variables persist to a saved scene** — plain
+script variables do not. So `label.text = "5"` then `save_scene()` sticks, but a
+non-exported script field won't. The flip side: values you poke onto live nodes
+just to preview something *can* get baked in if you `save_scene()` afterward, so
+reset them (or don't save) when you're only inspecting.
+
 ---
 
 ## Run a standalone script (when you need helper funcs/classes)
 
 The wrapped-body form can't declare top-level functions. When you need them, build
-a full script as a `GDScript` resource and instance it yourself:
+a full script as a `GDScript` resource and instance it yourself. Build its source
+the same way — an array of lines joined with `\n` — so the wrapper can't shift the
+indentation (a triple-quoted literal here would break the same way it does when
+writing a file):
 
 ```gdscript
+var lines = [
+    "extends RefCounted",
+    "func helper(x): return x * x",
+    "func run():",
+    "\tvar total := 0",
+    "\tfor i in range(5):",
+    "\t\ttotal += helper(i)",
+    "\treturn total",
+]
 var gd = GDScript.new()
-gd.source_code = """
-extends RefCounted
-func helper(x): return x * x
-func run():
-    var total := 0
-    for i in range(5): total += helper(i)
-    return total
-"""
+gd.source_code = "\n".join(lines) + "\n"
 gd.reload()
 var obj = gd.new()
 return obj.run()
 ```
+
+---
+
+## What you can observe and test from Didi
+
+`run_gdscript` executes inside the **editor**, against the edited scene. That
+determines what you can actually verify:
+
+- **`@tool` nodes run in the editor.** Their `_ready`/`_process`/`_draw` execute,
+  and you can call their methods directly from a tool call. Make data/visual nodes
+  you want to inspect or drive from Didi `@tool` — then you can call a method and
+  *see* `_draw` update in the viewport.
+- **Non-`@tool` scripts have no live instance in the editor.** The node carries the
+  script (so `node.has_method(...)` is true), but nothing is running, so calling
+  its methods from a tool call errors. Keep gameplay-only logic non-`@tool` so it
+  runs solely in the real game.
+- **The played game (F5) is a separate OS process.** Didi talks to the editor, not
+  to the running game — you can't introspect or drive a live play session through
+  it.
+
+So to test runtime-only logic without launching the game, **mirror it against a
+`@tool` node**: call the same lower-level methods (which *do* run in the editor)
+and assert the result — e.g. drive a board/model node's `is_valid`/`move`/`rotate`
+directly, instead of the controller that only runs at play time. Then confirm
+input and timing by running the game and watching.
 
 ---
 

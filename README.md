@@ -35,6 +35,8 @@ Didi/
 ├── demo/
 │   ├── project.godot       # minimal Godot project to load the extension
 │   └── addons/didi/        # generated (git-ignored): static files above + the compiled library
+├── examples/
+│   └── tetris.md           # worked walkthrough: building the demo's Tetris game through Didi
 └── CMakeLists.txt          # CMake build (godot-cpp + fastmcpp + the extension)
 ```
 
@@ -112,7 +114,7 @@ transport, MCP spec 2025-03-26):
 ### Trying it in Godot
 
 1. Build the library (see above) — it lands in `demo/addons/didi/`.
-2. Open `demo/project.godot` in the Godot **editor** (4.4+). The
+2. Open `demo/project.godot` in the Godot **editor** (4.5+). The
    `DidiEditorPlugin` starts the server automatically and logs
    `DidiServer: MCP server listening on http://127.0.0.1:8900/mcp`.
 3. Point any MCP client (Streamable HTTP transport) at that URL, or smoke-test

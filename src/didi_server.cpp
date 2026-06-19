@@ -5,6 +5,7 @@
 #include <godot_cpp/classes/gd_script.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
+#include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include <fastmcpp/mcp/handler.hpp>
@@ -212,10 +213,30 @@ void DidiServer::drain_script_queue() {
 
 std::string DidiServer::execute_gdscript(const std::string &user_source) {
     // Wrap the caller's source as the body of a method on a throwaway @tool
-    // RefCounted script. Each source line is indented one tab so it nests
-    // inside _didi_run(); callers use `return <value>` to produce a result.
+    // RefCounted script. Every line is indented one level so it nests inside
+    // _didi_run(); callers use `return <value>` to produce a result.
+    //
+    // GDScript forbids mixing tabs and spaces in indentation, so the indent we
+    // add must match the caller's own style: if any line is space-indented we
+    // indent with spaces, otherwise a tab (also the default when the body has
+    // no nested blocks of its own). This lets callers write either style
+    // without hitting a "mixed tabs and spaces" compile error.
     String body = String::utf8(user_source.c_str());
-    String indented = "\t" + body.replace("\n", "\n\t");
+
+    String unit = "\t";
+    const PackedStringArray lines = body.split("\n");
+    for (int i = 0; i < lines.size(); i++) {
+        const String &line = lines[i];
+        if (line.begins_with(" ")) {
+            unit = "    ";
+            break;
+        }
+        if (line.begins_with("\t")) {
+            break; // tab-indented; keep the default unit
+        }
+    }
+
+    String indented = unit + body.replace("\n", "\n" + unit);
     String wrapped = "@tool\nextends RefCounted\nfunc _didi_run():\n" + indented + "\n";
 
     Ref<GDScript> gd;
